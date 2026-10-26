@@ -1,0 +1,22 @@
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20        # required by FastAPI for file uploads
+
+# Config & validation
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# Database (PostGIS does all the spatial work, so we need no Python GIS stack)
+psycopg[binary,pool]==3.2.3
+
+# Auth
+PyJWT==2.10.1
+
+# HTTP client, for talking to the SMS gateway. Sync API, because the one call
+# that uses it is already inside a sync route.
+httpx==0.28.1
+
+# Streaming JSON parser - lets us ingest a 100 MB GeoJSON without loading it
+# all into memory at once.
+ijson==3.3.0

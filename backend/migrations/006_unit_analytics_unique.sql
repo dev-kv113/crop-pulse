@@ -1,0 +1,14 @@
+-- One unit, one mill.
+--
+-- Two units pointing at the same dashboard code would show one unit head the
+-- other unit's crop condition, so the invariant is worth having the database
+-- hold rather than leaving it to the route that writes it.
+--
+-- A plain UNIQUE index is enough: Postgres treats NULLs as distinct, so any
+-- number of units may have no code at all, which is the normal state for a unit
+-- whose data has not been published yet.
+--
+-- Setting a code that another unit already holds moves it rather than failing —
+-- see set_unit_analytics_code, which clears the old holder in the same
+-- transaction. This index is what makes that the only way it can happen.
+CREATE UNIQUE INDEX units_analytics_code_key ON units (analytics_code);

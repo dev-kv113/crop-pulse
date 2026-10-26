@@ -1,0 +1,97 @@
+# Deploys the API to the server whenever code is pushed.
+#
+#   push to `develop`  ->  staging   (api-staging.yourdomain.com)
+#   push to `main`     ->  production (api.yourdomain.com)
+#
+# Both live on the same EC2 instance as separate Docker stacks with separate
+# databases, so staging can be broken without touching production.
+#
+# Setup instructions: docs/DEPLOY-CICD.md
+
+name: Deploy backend
+
+on:
+  push:
+    branches: [main, develop]
+    # Only run when something that affects the API actually changed.
+    paths:
+      - "backend/**"
+      - "docker-compose.yml"
+      - ".github/workflows/deploy-backend.yml"
+  # Lets you deploy by hand from the Actions tab, e.g. to roll back.
+  workflow_dispatch:
+
+# If you push twice quickly, finish the newer one and abandon the older, but
+# never run two deploys at once against the same environment.
+concurrency:
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+    steps:
+      - name: Work out which environment this is
+        id: env
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "stack=crop-prod"       >> "$GITHUB_OUTPUT"
+            echo "dir=/home/ec2-user/apps/prod" >> "$GITHUB_OUTPUT"
+            echo "port=8010"             >> "$GITHUB_OUTPUT"
+          else
+            echo "stack=crop-staging"    >> "$GITHUB_OUTPUT"
+            echo "dir=/home/ec2-user/apps/staging" >> "$GITHUB_OUTPUT"
+            echo "port=8020"             >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # A build plus a database migration can take a while on a small server.
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            cd ${{ steps.env.outputs.dir }}/crop-pulse
+
+            echo "--- fetching ${{ github.ref_name }} ---"
+            git fetch --all
+            git reset --hard origin/${{ github.ref_name }}
+
+            echo "--- backing up the database before migrating ---"
+            # Cheap insurance: a migration that goes wrong is recoverable.
+            mkdir -p ~/backups
+            docker exec ${{ steps.env.outputs.stack }}-db \
+              pg_dump -U croppulse croppulse 2>/dev/null \
+              | gzip > ~/backups/predeploy-${{ steps.env.outputs.stack }}-$(date +%Y%m%d-%H%M).sql.gz \
+              || echo "no existing database yet, skipping backup"
+
+            echo "--- rebuilding ---"
+            docker compose up -d --build api
+
+            echo "--- waiting for it to answer ---"
+            for i in $(seq 1 30); do
+              if curl -fsS http://localhost:${{ steps.env.outputs.port }}/health > /dev/null; then
+                echo "healthy after ${i}s"
+                exit 0
+              fi
+              sleep 1
+            done
+
+            echo "!!! did not become healthy - recent logs follow"
+            docker compose logs --tail 60 api
+            exit 1
+
+      - name: Tidy up old Docker images
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Every build leaves the previous image behind; on a 30 GB disk that
+          # adds up quickly.
+          script: docker image prune -f

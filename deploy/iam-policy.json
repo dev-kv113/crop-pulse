@@ -1,0 +1,21 @@
+{
+  "_comment": "Attach to the EC2 instance role, alongside the existing mill-monitoring policy. This app reads nothing from S3 -- GeoJSON is uploaded through the admin screen. The only S3 use is pushing nightly database backups, so this grants write to the backup prefix and nothing else. Skip it entirely if you keep backups on the instance only.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "WriteCropPulseBackups",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::crop-geojsons/crop-pulse-backups/*"
+    },
+    {
+      "Sid": "ListCropPulseBackups",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::crop-geojsons",
+      "Condition": {
+        "StringLike": { "s3:prefix": ["crop-pulse-backups/*", "crop-pulse-backups"] }
+      }
+    }
+  ]
+}

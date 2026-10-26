@@ -1,0 +1,1504 @@
+/**
+ * One stylesheet for the whole app, in GEOtrans colours.
+ *
+ * Navy is the shell, amber is the single accent, and the map is left to be the
+ * brightest thing on screen. Phone-first: the plot screen is a full-height map
+ * with the layer control docked beneath it, and the control becomes a sidebar
+ * on a wide screen.
+ */
+
+:root {
+  /* --- GEOtrans brand ---------------------------------------------------- */
+  --navy: #1e1a5f;
+  --navy-deep: #14113f;
+  --navy-800: #262163;
+  --amber: #f5a81b;
+  --amber-bright: #fdb913;
+
+  /* --- surfaces ---------------------------------------------------------- */
+  --page: #f4f5f9;
+  --card: #ffffff;
+  --border: #dcdfeb;
+  --border-strong: #c3c8dc;
+
+  /* --- ink --------------------------------------------------------------- */
+  --ink: #14113f;
+  --ink-muted: #62688a;
+  --ink-on-navy: #ffffff;
+  --ink-on-navy-muted: #b9bcd8;
+
+  --danger: #c8322b;
+  --ok: #1c7a44;
+
+  --radius: 10px;
+  --pad: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  overscroll-behavior: none;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.logo {
+  width: auto;
+  display: block;
+}
+
+/* ------------------------------------------------------------- primitives -- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 48px;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--amber);
+  color: var(--navy-deep);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--amber-bright);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button-quiet {
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--border-strong);
+  font-weight: 600;
+}
+
+.button-quiet:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.button-small {
+  width: auto;
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.field > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="date"],
+input:not([type]) {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  /* 16px keeps iOS from zooming in on focus. */
+  font: inherit;
+  font-size: 16px;
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+input[type="file"] {
+  width: 100%;
+  margin-bottom: 12px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.hint {
+  margin: 6px 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.error,
+.success {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.error {
+  background: #fdeceb;
+  color: var(--danger);
+}
+
+.success {
+  background: #e7f5ec;
+  color: var(--ok);
+}
+
+.error-small {
+  margin-top: 4px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.page-pad {
+  padding: var(--pad);
+}
+
+/* Outside the admin grid, messages need their own spacing back. */
+.login .error,
+.page-pad.error,
+.page-pad.hint {
+  margin: 12px 0;
+}
+
+/* ------------------------------------------------------------------ login -- */
+
+.login {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--pad);
+  background: linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 26px 22px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+
+.login-logo {
+  margin-bottom: 20px;
+}
+
+.login-title {
+  font-size: 26px;
+  letter-spacing: -0.4px;
+}
+
+.login-subtitle {
+  margin: 6px 0 24px;
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+.login-sent {
+  margin: 0 0 14px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.dev-otp {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: #fff8e8;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.dev-otp strong {
+  color: var(--navy);
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+/* Required by Google Play, and quiet on purpose: a farmer signing in is not
+   looking for them, but they must be there to find. */
+.legal-links {
+  margin: 22px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.legal-links a {
+  color: var(--ink-muted);
+  text-underline-offset: 2px;
+}
+
+.legal-links a:hover {
+  color: var(--ink);
+}
+
+/* ----------------------------------------------------------- install row -- */
+
+/* One quiet line under the sign-in form. It is an offer, not an announcement,
+   so it gets a hairline rule rather than a filled card. */
+.install-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.install-text {
+  color: var(--ink-muted);
+}
+
+.install-text strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.install-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.install-dismiss {
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.install-dismiss:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------- app bar -- */
+
+/*
+ * A flat product shell, in the manner of IBM Carbon and Streamlit: fixed
+ * height, square corners, no shadow, one hairline rule separating it from the
+ * content. The amber sits in a 2px accent strip rather than as a fill, so the
+ * brand is present without shouting over the map.
+ */
+.appbar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 48px;
+  padding: 0 8px 0 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: inset 0 -3px 0 -1px var(--amber);
+  /* Clear the notch on a phone without changing the bar's own height. */
+  margin-top: env(safe-area-inset-top);
+}
+
+.appbar-brand {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 14px;
+  border-right: 1px solid var(--border);
+}
+
+.appbar-product {
+  flex: 0 0 auto;
+  padding: 0 14px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+}
+
+/* Where the user is. Separated from the product name by a rule, the way a
+   breadcrumb divider works, so the hierarchy is visible without indentation. */
+.appbar-context {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+}
+
+.appbar-title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appbar-subtitle {
+  color: var(--ink-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appbar-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 10px;
+}
+
+/* Below this the product name and the page context cannot both fit. The page
+   context wins: the user knows which app they opened. */
+@media (max-width: 560px) {
+  .appbar-product {
+    display: none;
+  }
+
+  .appbar-context {
+    border-left: 0;
+    padding-left: 12px;
+  }
+
+  .appbar-brand {
+    padding: 0 10px;
+  }
+}
+
+/* -------------------------------------------------------------- plot list -- */
+
+.list-page {
+  min-height: 100%;
+}
+
+.plot-list {
+  margin: 0;
+  padding: var(--pad);
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.plot-card {
+  display: grid;
+  gap: 2px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--amber);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: inherit;
+  text-decoration: none;
+}
+
+.plot-card:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--amber);
+}
+
+.plot-card-name {
+  font-weight: 700;
+}
+
+.plot-card-meta,
+.plot-card-id {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+/* -------------------------------------------------------------- plot page -- */
+
+.plot-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.plot-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.map-column {
+  position: relative;
+  flex: 1;
+  min-height: 42vh;
+  display: flex;
+}
+
+.map-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.map {
+  flex: 1;
+  min-height: 100%;
+  background: #dfe3ee;
+}
+
+.map-loading {
+  display: grid;
+  place-items: center;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.map-failure {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: #fdeceb;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* "Zoom to plot" continues the stack under MapLibre's two zoom buttons
+   (2 x 29px + 10px top margin), so the map tools read as one group. */
+.map-tool {
+  position: absolute;
+  top: 78px;
+  right: 10px;
+  z-index: 2;
+  padding: 7px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.map-tool:hover {
+  background: #f2f3f8;
+}
+
+/* MapLibre's own class, restyled to match the app. Not found in our markup. */
+.maplibregl-popup-content {
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.map-popup {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.map-popup-swatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+}
+
+.map-popup strong {
+  font-size: 14px;
+}
+
+.map-popup-detail,
+.map-popup-area {
+  grid-column: 2;
+  color: var(--ink-muted);
+}
+
+/* --------------------------------------------------------- layer control -- */
+
+.control {
+  flex: 0 0 auto;
+  max-height: 48vh;
+  overflow-y: auto;
+  padding: 4px var(--pad) max(env(safe-area-inset-bottom), var(--pad));
+  border-top: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  background: var(--card);
+  box-shadow: 0 -6px 22px rgba(20, 17, 63, 0.1);
+}
+
+.control-grip {
+  width: 38px;
+  height: 4px;
+  margin: 6px auto 10px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+.control-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.control-section:last-child {
+  border-bottom: 0;
+}
+
+.control-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.control-note {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12px;
+}
+
+/* Segmented control for mutually exclusive basemaps. */
+.segmented {
+  display: flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segment {
+  flex: 1;
+  padding: 9px 6px;
+  border: 0;
+  border-right: 1px solid var(--border-strong);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segment:last-child {
+  border-right: 0;
+}
+
+.segment.is-on {
+  background: var(--navy);
+  color: var(--ink-on-navy);
+}
+
+.radio-list {
+  display: grid;
+  gap: 2px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--navy);
+  flex: 0 0 auto;
+}
+
+.check-sub {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.check-swatch-outline {
+  width: 16px;
+  height: 12px;
+  border: 2px solid var(--navy);
+  border-radius: 2px;
+  background: rgba(30, 26, 95, 0.08);
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-row input {
+  flex: 1;
+  accent-color: var(--amber);
+}
+
+.slider-value {
+  width: 42px;
+  text-align: right;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- ramp strip -- */
+
+/* The whole classification as one continuous bar, so the low-to-high scale is
+   readable even when the plot only contains a few of the classes. */
+.ramp {
+  display: flex;
+  height: 12px;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.ramp-step {
+  flex: 1;
+}
+
+.ramp-ends {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0 12px;
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+/* ----------------------------------------------------------------- legend -- */
+
+.legend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+
+.legend-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 48px 60px;
+  grid-template-areas:
+    "swatch label percent area"
+    ".      bar   bar     bar";
+  align-items: center;
+  gap: 3px 9px;
+  font-size: 14px;
+}
+
+.legend-swatch {
+  grid-area: swatch;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  border-radius: 3px;
+}
+
+.legend-label {
+  grid-area: label;
+  min-width: 0;
+}
+
+.legend-detail {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-bar {
+  grid-area: bar;
+  height: 4px;
+  border-radius: 2px;
+  background: #eceef6;
+}
+
+.legend-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.legend-percent {
+  grid-area: percent;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-area {
+  grid-area: area;
+  text-align: right;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ admin -- */
+
+/*
+ * The admin screen is a working surface, so it uses the width it is given
+ * instead of sitting in a narrow column with the page empty beside it.
+ *
+ * A two-column grid on desktop: the two upload forms are narrow and pair up,
+ * while anything containing a table spans the full width via `.card-wide`.
+ * On a phone it collapses to one column and reads top to bottom.
+ */
+.admin-body {
+  display: grid;
+  /* minmax(0, 1fr), never plain 1fr.
+     `1fr` is shorthand for `minmax(auto, 1fr)`, and that `auto` minimum is
+     content-based: one wide table then stretches the column past the screen
+     and the whole PAGE scrolls sideways. minmax(0, ...) lets the column be
+     narrower than its content, so overflow is handled inside the card where
+     it belongs. */
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 16px;
+  padding: var(--pad);
+  /* Wide enough to use a laptop screen, capped so text lines stay readable on
+     a very wide monitor. Centred so it is never lopsided. */
+  max-width: 1500px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.card-wide {
+  grid-column: 1 / -1;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--amber);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.card {
+  padding: var(--pad);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.card h2 {
+  margin-bottom: 4px;
+  font-size: 17px;
+}
+
+.table-scroll {
+  /* Wide tables scroll inside their own box, never the page. */
+  overflow-x: auto;
+  margin-top: 12px;
+  /* A grid/flex child will not shrink below its content without this. */
+  min-width: 0;
+}
+
+.card {
+  min-width: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.table th,
+.table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.table th {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The four badge-* modifiers below are built at runtime as
+   `badge badge-${layer.status}`, so searching the source for ".badge-ready"
+   finds nothing. They are in use - do not delete them. */
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.badge-ready {
+  background: #e7f5ec;
+  color: var(--ok);
+}
+
+.badge-failed {
+  background: #fdeceb;
+  color: var(--danger);
+}
+
+.badge-pending,
+.badge-processing {
+  background: #fff3d9;
+  color: #8a6100;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.switch input {
+  accent-color: var(--navy);
+}
+
+.inline-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.inline-form input {
+  width: 150px;
+}
+
+/* --------------------------------------------------------- preview banner -- */
+
+/* Shown only to an admin viewing someone else's plot. Amber rather than navy:
+   it is a state the viewer is in, not part of the product chrome. */
+.preview-bar {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px var(--pad);
+  background: #fff5e0;
+  border-bottom: 1px solid #f0d9a8;
+  color: #6b4d00;
+  font-size: 13px;
+}
+
+.preview-code {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #f7e3b5;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.preview-note {
+  color: #8a6a26;
+}
+
+select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.plot-switch {
+  margin-bottom: 14px;
+}
+
+/* ------------------------------------------------------------ plot facts -- */
+
+/* A short definition list, so each number is next to the word that says what
+   it is. Two areas without labels is exactly how "what is that 0.37 acres?"
+   happens. */
+.facts {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.facts dt {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.facts-alt {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------------ units -- */
+
+.unit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.unit-chip {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.unit-chip:hover {
+  background: #f2f3f8;
+}
+
+.unit-chip.is-on {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: var(--ink-on-navy);
+}
+
+.unit-chip-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.unit-chip-meta {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.unit-chip.is-on .unit-chip-meta {
+  color: var(--ink-on-navy-muted);
+}
+
+.unit-rename {
+  margin-top: 12px;
+}
+
+/* These two rows put a button beside a full-size input, so the button takes the
+   input's height instead of the 38px meant for a button inside a table row. A
+   short button next to a tall field reads as a mistake rather than a choice. */
+.inline-form.unit-rename .button {
+  min-height: 48px;
+  padding: 12px 18px;
+}
+
+.cell-sub {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.cell-warn {
+  color: #8a6100;
+  font-size: 13px;
+}
+
+.result-count {
+  margin: 14px 0 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.result-count strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.load-more {
+  margin-top: 12px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.button-danger {
+  color: var(--danger);
+  border-color: #eec4c1;
+}
+
+.button-danger:hover:not(:disabled) {
+  background: #fdeceb;
+}
+
+/* ------------------------------------------------------- unit head views --- */
+
+/*
+ * Farmers and Crop monitoring are two views of the same screen, switched rather
+ * than stacked. The inactive one is hidden, not unmounted, so a search or a
+ * dashboard session survives a trip to the other and back — which means `hidden`
+ * has to beat the grid `display` below, hence the explicit rule.
+ */
+.unit-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.unit-panel[hidden] {
+  display: none;
+}
+
+/*
+ * Underline tabs, the way Stripe, Linear and GitHub mark the primary views of a
+ * page: labels on a rule, the active one darkened and carrying an accent
+ * underline. A full-width segmented bar was tried first and read as a banner —
+ * two big blocks of colour with small text in them, so the one thing it had to
+ * say, "these are the two views, you are in this one", was the thing it said
+ * least. Tabs that hug their labels say it with much less ink.
+ *
+ * Sticky so the other view is one tap away from anywhere in the farmer table,
+ * not a scroll back to the top. The negative margin lets the background and the
+ * rule run to both edges, so rows pass underneath rather than beside it.
+ */
+.view-switcher {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 calc(-1 * var(--pad));
+  padding: 2px var(--pad) 0;
+  background: var(--page);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs {
+  display: flex;
+  gap: 26px;
+}
+
+.tab {
+  position: relative;
+  padding: 11px 2px;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+  /* Bigger than the old 13px segments. These are the page's primary navigation,
+     so they are allowed to be read at a glance. */
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The underline overlaps the rule on `.view-switcher` rather than sitting above
+   it, so the active tab reads as a position along one continuous track. */
+.tab::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab:hover::after {
+  background: var(--border-strong);
+}
+
+.tab.is-on {
+  color: var(--ink);
+}
+
+.tab.is-on::after {
+  background: var(--amber);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--navy);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+/* ------------------------------------------------- monitoring dashboard --- */
+
+/* Heading and the way out, on one row: on a phone every line above the frame
+   is a line the dashboard does not get. */
+.monitoring-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.monitoring-head h2 {
+  min-width: 0;
+}
+
+/*
+ * The framed dashboard on the unit head's screen.
+ *
+ * It is another app, so it gets a fixed box and keeps its own scrolling inside:
+ * a frame sized to its content would need to know its height, which is not
+ * something one origin can ask another.
+ *
+ * `dvh`, not `vh`: on a phone `vh` is the height with the browser's address bar
+ * hidden, so a `vh`-sized frame is taller than the screen actually is until you
+ * scroll. `dvh` tracks the real visible height, which is what makes this fill
+ * the screen instead of overhanging it.
+ *
+ * Bordered on purpose. Framed content that bleeds into the page reads as part
+ * of this app, and this part is not ours.
+ */
+.analytics-frame {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  /* Everything around it — app bar, switcher, heading, hint, the page's own
+     padding — comes to a little over 200px on a phone, so this takes what is
+     left. Capped because on a desktop the dashboard already has all the room it
+     needs and a 1400px-tall frame would just be a second scrollbar. */
+  height: min(calc(100dvh - 230px), 900px);
+  min-height: 380px;
+  background: #fff;
+}
+
+.analytics-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ----------------------------------------------------------------- modal --- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--pad);
+  background: rgba(20, 17, 63, 0.45);
+}
+
+.modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: var(--pad);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.modal-head h3 {
+  font-size: 17px;
+}
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.class-rows {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.class-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.class-color {
+  width: 40px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.class-label {
+  width: 100%;
+}
+
+.class-source {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 460px) {
+  /* On a narrow phone the colour swatch and the name are what matter; the
+     source band is reference detail and can wait for a bigger screen. */
+  .class-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .class-source {
+    display: none;
+  }
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-actions .button {
+  width: auto;
+}
+
+/* ------------------------------------------------- tables on small screens -- */
+
+/*
+ * Below this width a seven-column table cannot be read, and side-scrolling to
+ * find the Save button is miserable. So each row becomes its own little card
+ * with one field per line, labelled from the `data-label` attribute on the cell.
+ *
+ * Same markup, same component - only the presentation changes.
+ */
+@media (max-width: 760px) {
+  /* Every pixel of card padding is a pixel of dashboard, and the dashboard is
+     already the narrowest thing on the screen here. */
+  .monitoring-card {
+    padding: 12px 10px;
+  }
+
+  .monitoring-head h2 {
+    font-size: 16px;
+  }
+
+  .table-scroll {
+    overflow-x: visible;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  /* The header row is meaningless once each cell carries its own label. */
+  .table thead {
+    display: none;
+  }
+
+  .table tr {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--amber);
+    border-radius: 8px;
+    background: var(--card);
+  }
+
+  .table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border: 0;
+    /* Long values wrap instead of forcing the card wider. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  /* A cell with no label is an actions cell: let it use the full width. */
+  .table td[data-label=""]::before,
+  .table td:not([data-label])::before {
+    content: none;
+  }
+
+  .table td.num {
+    text-align: right;
+  }
+
+  /* Buttons and the phone field get room rather than being squeezed right. */
+  .result-count {
+  margin: 14px 0 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.result-count strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.load-more {
+  margin-top: 12px;
+}
+
+.row-actions {
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+
+  .inline-form {
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .inline-form input {
+    width: 100%;
+    max-width: 190px;
+  }
+}
+
+/* ------------------------------------------------------------ wide screen -- */
+
+@media (min-width: 1000px) {
+  .admin-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  /* The layer control becomes a proper sidebar, as in a desktop GIS. */
+  .plot-body {
+    flex-direction: row;
+  }
+
+  .map-column {
+    min-height: 0;
+  }
+
+  .control {
+    flex: 0 0 340px;
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+    padding-top: var(--pad);
+  }
+
+  .control-grip {
+    display: none;
+  }
+}

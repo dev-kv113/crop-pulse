@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.local
+
+# Uploaded GeoJSON files and other runtime data
+backend/var/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+# Service worker generated for the dev server by vite-plugin-pwa
+frontend/dev-dist/
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Generated app icons are COMMITTED (regenerate with `npm run icons`), so they
+# are not listed here. Only build output is ignored.
+
+# The Trusted Web Activity project Bubblewrap generates. It is regenerated from
+# the live manifest, and it contains the signing key.
+android-twa/
+
+# Android signing keys, wherever they end up. Losing one means never being able
+# to update the Play Store app again; committing one means anyone can publish as
+# you. Bubblewrap does not always put them inside android-twa/, so match by name
+# too.
+*.keystore
+*.jks
+keystore.properties
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

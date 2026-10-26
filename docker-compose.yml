@@ -1,0 +1,98 @@
+# The Crop Analytics stack: database + API + web app.
+#
+#   docker compose up -d --build    -> everything; open http://localhost:8080
+#   docker compose up -d db api     -> database + API (frontend via `npm run dev`)
+#   docker compose up -d db         -> just the database (run the API on your host)
+#
+# The `web` service is the built frontend behind nginx, with /api passed through
+# to the API container. For day-to-day frontend work `npm run dev` is still
+# better - it hot-reloads. Production deploys only ever start `api`; there the
+# frontend is static files served by the host's nginx.
+#
+# ---------------------------------------------------------------------------
+# Running more than one copy on the same machine
+#
+# Names and ports are variables so that production and staging can live on the
+# same server without colliding. Defaults are the local-development values, so
+# plain `docker compose up -d` still does what you expect.
+#
+#   STACK=crop-staging API_PORT=8020 DB_PORT=5434 docker compose up -d
+#
+# Set them in a `.env` file next to this one and Compose picks them up
+# automatically - that is what the deploy scripts do.
+# ---------------------------------------------------------------------------
+name: ${STACK:-crop-pulse}
+
+services:
+  db:
+    # The official `postgis/postgis` image is published for amd64 only, so on an
+    # Apple Silicon Mac it runs under emulation and the clipping step crawls.
+    # `imresamu/postgis` is the widely used multi-arch rebuild of the same thing
+    # and runs natively on both. Override with POSTGIS_IMAGE if you prefer the
+    # official image (fine on an amd64 host, and irrelevant if you move to RDS).
+    image: ${POSTGIS_IMAGE:-imresamu/postgis:16-3.5}
+    container_name: ${STACK:-crop-pulse}-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-croppulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-croppulse}
+      POSTGRES_DB: ${POSTGRES_DB:-croppulse}
+    # Exposed on the host for local development only. In production, delete this
+    # block so the database is reachable only from the API container.
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-croppulse} -d ${POSTGRES_DB:-croppulse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    container_name: ${STACK:-crop-pulse}-api
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      # These win over anything in backend/.env, which is written for running
+      # the API directly on your machine.
+      #
+      # Inside the compose network the database is reachable as "db:5432".
+      DATABASE_URL: postgresql://${POSTGRES_USER:-croppulse}:${POSTGRES_PASSWORD:-croppulse}@db:5432/${POSTGRES_DB:-croppulse}
+      # Must point at the mounted volume below. Without this the .env value
+      # (./var/uploads) wins, uploads land in the container's own filesystem,
+      # and every rebuild throws away the source GeoJSONs.
+      UPLOAD_DIR: /data/uploads
+    # 8010 on the host: 8000 is a popular default and is often already taken.
+    ports:
+      - "${API_PORT:-8010}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Uploaded GeoJSON files land here so they survive a container restart.
+      - api_uploads:/data/uploads
+      # Secrets that must not live in the repository. One file per setting,
+      # named after it, holding only the value. Read-only, and the path is set
+      # in the .env file beside this one so it never appears in git.
+      - ${SECRETS_DIR:-./deploy/secrets}:/run/secrets:ro
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        # Optional: sharper satellite imagery (see frontend/.env.example).
+        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY:-}
+    container_name: ${STACK:-crop-pulse}-web
+    restart: unless-stopped
+    # 8080 on the host; the dev server keeps 5174, so both can run at once.
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+
+volumes:
+  db_data:
+  api_uploads:

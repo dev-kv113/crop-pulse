@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crop Analytics — back shortly</title>
+<style>
+  :root { --navy:#1e1a5f; --navy-deep:#14113f; --amber:#f5a81b; --card:#fff; --muted:#62688a; }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body {
+    display:grid; place-items:center; padding:20px;
+    background:linear-gradient(160deg,var(--navy) 0%,var(--navy-deep) 100%);
+    color:#14113f; font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  .card {
+    width:100%; max-width:400px; padding:32px 26px; border-radius:16px;
+    background:var(--card); box-shadow:0 18px 50px rgba(0,0,0,.28); text-align:center;
+  }
+  .mark {
+    width:56px; height:56px; margin:0 auto 20px; border-radius:14px;
+    background:var(--navy); display:grid; place-items:center;
+  }
+  .mark svg { display:block; }
+  h1 { margin:0 0 10px; font-size:22px; color:var(--navy); line-height:1.25; }
+  p { margin:0 0 14px; color:var(--muted); font-size:15px; }
+  p:last-of-type { margin-bottom:0; }
+  .hi { color:#14113f; font-weight:600; }
+  .bar {
+    height:4px; margin:24px 0 18px; border-radius:2px; overflow:hidden;
+    background:#eceef7;
+  }
+  .bar i { display:block; height:100%; width:40%; border-radius:2px; background:var(--amber);
+           animation:slide 1.8s ease-in-out infinite; }
+  @keyframes slide { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
+  @media (prefers-reduced-motion:reduce) { .bar i { animation:none; width:100%; } }
+  .retry { font-size:13px; color:var(--muted); }
+  button {
+    margin-top:8px; padding:12px 20px; min-height:48px; width:100%;
+    border:0; border-radius:10px; background:var(--amber); color:var(--navy-deep);
+    font:inherit; font-weight:700; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f5a81b"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v4M12 18v4M4.9 4.9l2.9 2.9M16.2 16.2l2.9 2.9M2 12h4M18 12h4M4.9 19.1l2.9-2.9M16.2 7.8l2.9-2.9"/>
+      </svg>
+    </div>
+
+    <h1>Back in a few minutes</h1>
+    <p>
+      Crop Analytics is being updated. <span class="hi">Nothing has been lost</span> —
+      your plots and survey dates are safe.
+    </p>
+
+    <div class="bar" aria-hidden="true"><i></i></div>
+
+    <p class="retry">This page checks again on its own every 30 seconds.</p>
+    <button type="button" onclick="location.reload()">Try now</button>
+  </div>
+
+<script>
+  // Reload on a timer so a farmer who leaves the page open is let back in
+  // without having to do anything.
+  setTimeout(function () { location.reload(); }, 30000);
+</script>
+</body>
+</html>

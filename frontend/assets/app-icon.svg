@@ -1,0 +1,23 @@
+<!--
+  Source for every app icon size.
+
+  A wordmark is unreadable at 48px, so the launcher icon is a simple mark in the
+  GEOtrans colours instead: amber cane leaves on navy.
+
+  To use a real brand icon, replace this file (keep the name, keep it square)
+  and run `npm run icons`.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#1e1a5f"/>
+  <!-- Cane stalk -->
+  <rect x="245" y="150" width="22" height="240" rx="11" fill="#f5a81b"/>
+  <!-- Leaves, paired left and right -->
+  <g fill="#f5a81b">
+    <path d="M245 210 C 190 195, 150 165, 132 128 C 180 130, 222 158, 245 196 Z"/>
+    <path d="M267 210 C 322 195, 362 165, 380 128 C 332 130, 290 158, 267 196 Z"/>
+    <path d="M245 288 C 190 273, 150 243, 132 206 C 180 208, 222 236, 245 274 Z"/>
+    <path d="M267 288 C 322 273, 362 243, 380 206 C 332 208, 290 236, 267 274 Z"/>
+  </g>
+  <!-- Ground line -->
+  <rect x="176" y="386" width="160" height="18" rx="9" fill="#ffce60"/>
+</svg>

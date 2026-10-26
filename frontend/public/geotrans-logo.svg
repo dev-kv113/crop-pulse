@@ -1,0 +1,19 @@
+<!--
+  PLACEHOLDER GEOtrans wordmark.
+
+  This is a hand-built approximation so the app looks finished. To use the real
+  brand asset, replace this file (keep the name) with the official SVG or drop a
+  PNG next to it as `geotrans-logo.png` and update the `src` in
+  src/components/Logo.tsx. An SVG is preferred: it stays sharp on every screen
+  density and on the Play Store listing.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 150" role="img" aria-label="GEOtrans Technologies">
+  <title>GEOtrans Technologies</title>
+  <g font-family="Verdana, Geneva, DejaVu Sans, sans-serif" font-weight="700">
+    <!-- "GEO" in brand amber, "trans" in brand navy -->
+    <text x="20" y="86" font-size="76" font-style="italic" fill="#f5a81b" letter-spacing="-2">GEO</text>
+    <text x="196" y="86" font-size="76" font-style="italic" fill="#1e1a5f" letter-spacing="-2">trans</text>
+    <!-- "TECHNOLOGIES", widely letter-spaced under the wordmark -->
+    <text x="24" y="126" font-size="23" fill="#1e1a5f" letter-spacing="11.5">TECHNOLOGIES</text>
+  </g>
+</svg>

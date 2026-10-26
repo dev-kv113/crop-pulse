@@ -1,0 +1,6 @@
+node_modules
+dist
+dev-dist
+*.tsbuildinfo
+# Points at localhost:8010 for `npm run dev`; the image is built same-origin.
+.env
