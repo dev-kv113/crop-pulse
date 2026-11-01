@@ -6,8 +6,8 @@
 #
 # The `web` service is the built frontend behind nginx, with /api passed through
 # to the API container. For day-to-day frontend work `npm run dev` is still
-# better - it hot-reloads. Production deploys only ever start `api`; there the
-# frontend is static files served by the host's nginx.
+# better - it hot-reloads. Production runs all three services on one server,
+# with docker-compose.prod.yml layered on top - see scripts/deploy.sh.
 #
 # ---------------------------------------------------------------------------
 # Running more than one copy on the same machine

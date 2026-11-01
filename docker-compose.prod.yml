@@ -1,0 +1,124 @@
+# Production overrides, layered on top of docker-compose.yml.
+#
+# `scripts/deploy.sh --setup` turns this on by writing, into the git-ignored
+# `.env` next to the compose file:
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+#
+# so every `docker compose ...` on the server - by hand or from the deploy
+# script - gets these settings. Do not edit docker-compose.yml on the server
+# instead: deploy.sh refuses to pull over local changes.
+#
+# The only thing facing the internet is the host's nginx (ports 80/443, HTTPS),
+# which hands everything to the `web` container. Nothing else listens publicly.
+#
+# ---------------------------------------------------------------------------
+# Resources: sized for a 2 GB / 2 vCPU instance (t4g.small).
+#
+#                 memory limit   reserved   cpus
+#   db               896 MB       512 MB    1.5    clipping runs in PostGIS
+#   api              512 MB       256 MB    1.0    imports stream; one process
+#   web               64 MB        16 MB    0.25   nginx serving static files
+#   ----------------------------------------
+#   containers     ~1.47 GB
+#   host           ~0.5 GB   kernel, dockerd, host nginx, and image builds
+#
+# The limits are ceilings, not allocations: an idle stack uses a fraction of
+# this. A container that hits its memory limit is killed and restarted
+# (restart: unless-stopped) instead of taking the whole server down.
+#
+# Builds (`docker compose build`) run outside these limits and `vite build`
+# alone can want ~1 GB, which is why `deploy.sh --setup` adds a 2 GB swap file.
+#
+# On a bigger instance, scale the memory figures and the Postgres settings
+# below together; shared_buffers should stay around a quarter of db's limit.
+# ---------------------------------------------------------------------------
+
+x-logging: &logging
+  # Docker keeps container logs forever by default; on a 30 GB disk a chatty
+  # import eventually fills it. 3 x 10 MB per container is plenty to debug with.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# IPv6 for the containers. On an IPv6-only instance (no public IPv4) this is
+# the only way out: without it the API cannot reach MSG91 to send login SMS.
+# Docker 27+ routes the private range below out through the host's own IPv6
+# address. On a dual-stack host it is harmless: IPv4 is still preferred.
+# Image builds use Docker's default network instead, which `deploy.sh --setup`
+# gives IPv6 on such hosts (/etc/docker/daemon.json).
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:c0de:c0de::/64
+
+services:
+  db:
+    # Only the API talks to the database, over the compose network. Publishing
+    # it on the host puts Postgres on the internet if the firewall ever slips.
+    ports: !reset []
+    # Postgres defaults assume nothing about the machine; these fit 896 MB.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=224MB
+      # Planner hint only (allocates nothing): how much of the data the OS
+      # cache is likely to hold.
+      - -c
+      - effective_cache_size=512MB
+      # Per sort/hash, per query step. Kept small so a few concurrent clipping
+      # queries cannot add up past the limit.
+      - -c
+      - work_mem=8MB
+      # Index builds and VACUUM, one at a time.
+      - -c
+      - maintenance_work_mem=96MB
+      # The API pool tops out at DB_POOL_MAX (10 by default); leave headroom
+      # for psql and pg_dump during a deploy, but no more - each one costs RAM.
+      - -c
+      - max_connections=40
+      # Two vCPUs: one helper per query at most, so a big query cannot starve
+      # the API.
+      - -c
+      - max_parallel_workers_per_gather=1
+    # Parallel queries share memory through /dev/shm. Docker's 64 MB default
+    # fails them with "could not resize shared memory segment".
+    shm_size: 128m
+    deploy:
+      resources:
+        limits:
+          memory: 896M
+          cpus: "1.5"
+        reservations:
+          memory: 512M
+    logging: *logging
+
+  api:
+    # Loopback only: the browser reaches the API through web -> /api/. This port
+    # is for health checks and curl on the server itself.
+    ports: !override
+      - "127.0.0.1:${API_PORT:-8010}:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+    logging: *logging
+
+  web:
+    # Loopback only: the host's nginx terminates HTTPS and proxies to this.
+    ports: !override
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+        reservations:
+          memory: 16M
+    logging: *logging

@@ -39,3 +39,6 @@ keystore.properties
 .DS_Store
 .idea/
 .vscode/
+
+# scripts/deploy.sh lock
+.deploy.lock/

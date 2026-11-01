@@ -17,9 +17,20 @@ import {
   NavigationControl,
   Popup,
   ScaleControl,
+  setWorkerUrl,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// MapLibre parses every GeoJSON source in a web worker. Version 6 finds that
+// worker by computing a URL next to its own file at runtime, which the
+// production build cannot see - so the worker was never emitted, and in a
+// built app the plot boundary and survey layer silently never drew (the
+// raster basemap needs no worker, so it looked like everything else worked).
+// `?worker&url` has Vite bundle the worker, with the code it shares with the
+// main library, and hand back its URL.
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { useEffect, useRef, useState } from "react";
+
+setWorkerUrl(maplibreWorkerUrl);
 
 import { BASEMAPS, MAP_STYLE, MAX_MAP_ZOOM } from "../basemap";
 

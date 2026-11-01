@@ -3,23 +3,23 @@
 Written for someone who has an AWS account and has not deployed a server before.
 Every step says **what you are doing and why**, not just what to type.
 
-By the end, shipping a change is:
+Everything runs on **one EC2 instance**: the database, the API and the web app,
+each in its own Docker container, with nginx in front for HTTPS. One script,
+[`scripts/deploy.sh`](../scripts/deploy.sh), sets the server up once and then
+ships every release:
 
 ```bash
-git push
+ssh ec2-user@YOUR_ELASTIC_IP 'cd ~/crop-pulse && scripts/deploy.sh'
 ```
-
-…and you get a **staging** environment where you can break things without a
-farmer noticing.
 
 | | Time | Cost |
 |---|---|---|
-| Parts 1–4 (get it live) | ~2 hours the first time | ~US$20–25/month |
-| Part 5 (automatic deploys + staging) | ~45 minutes | ~US$1/month more |
+| First deploy (Parts 1–2) | ~1 hour | ~US$15–20/month (t4g.small, 30 GB disk, Elastic IP) |
+| Every release after | ~3 minutes | — |
 
 Getting the app onto farmers' phones needs no app store and no extra
 infrastructure — see **[DEPLOY-ANDROID.md](DEPLOY-ANDROID.md)**. It works as soon
-as Part 4 is done, because the only requirement is HTTPS.
+as Part 2 is done, because the only requirement is HTTPS.
 
 ---
 
@@ -31,30 +31,19 @@ as Part 4 is done, because the only requirement is HTTPS.
 1. [What we are building](#1-what-we-are-building-in-plain-terms)
 2. [Create the server](#2-create-the-server-ec2)
 3. [Connect to it](#3-connect-to-the-server)
-4. [Install Docker](#4-install-docker)
+4. [Point your domain at it](#4-point-your-domain-at-the-server)
 
-**Part 2 — The backend**
-5. [Lay out the folders](#5-lay-out-the-folders)
-6. [Production settings](#6-write-the-production-settings)
-7. [Start it](#7-start-the-backend)
+**Part 2 — Install and deploy**
+5. [Get the code](#5-get-the-code)
+6. [Set up the server](#6-set-up-the-server)
+7. [Production settings](#7-production-settings)
+8. [First deploy](#8-first-deploy)
 
-**Part 3 — Domains and HTTPS**
-8. [Point your domain at the server](#8-point-your-domain-at-the-server)
-9. [Turn on HTTPS](#9-turn-on-https)
-
-**Part 4 — The web app**
-10. [Publish to S3 and CloudFront](#10-publish-the-web-app)
-11. [Load your data](#11-load-your-data)
-12. [Back-ups](#12-back-ups--do-not-skip-this)
-
-**Part 5 — Automatic deploys and staging**
-13. [Add the staging stack](#13-add-a-staging-stack)
-14. [Staging domains](#14-give-staging-its-own-addresses)
-15. [Let GitHub into the server](#15-let-github-into-the-server)
-16. [Configure GitHub](#16-configure-github)
-17. [Try it](#17-create-develop-and-try-it)
-18. [The everyday routine](#18-the-everyday-routine)
-19. [Rolling back](#19-rolling-back)
+**Part 3 — Running it**
+9. [Load your data](#9-load-your-data)
+10. [Back-ups](#10-back-ups--do-not-skip-this)
+11. [The everyday routine](#11-the-everyday-routine)
+12. [Rolling back](#12-rolling-back)
 
 **[When something breaks](#when-something-breaks)**
 
@@ -103,14 +92,14 @@ The value in the repository is `dev-secret-change-me` — public, for anyone to
 see. Deploy with it and someone could forge a wristband saying "I am an admin",
 and the server would believe it.
 
-Generate a real one on your Mac:
+**You do not need to make one by hand.** The server setup in step 6 generates
+an unguessable secret and writes it into `backend/.env`, and the deploy script
+refuses to run with the public placeholder. If you ever want to generate one
+yourself:
 
 ```bash
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
-
-All that command does is print unguessable text. **Copy it somewhere safe** —
-you paste it in step 6.
 
 - **Never commit it.** It belongs only in `backend/.env` on the server, which is
   git-ignored.
@@ -133,7 +122,7 @@ account: Console → **Route 53** → **Registered domains** → **Register doma
 Registration can take up to an hour.
 
 Already have one at GoDaddy or Namecheap? Fine — you will add DNS records there
-in step 8 instead.
+in step 4 instead.
 
 ## 0.5 Have your data ready
 
@@ -143,8 +132,7 @@ reads.
 
 > **Regions.** Pick **Asia Pacific (Mumbai) `ap-south-1`** in the top-right
 > region selector and stay in it. Resources in different regions cannot see each
-> other, and Mumbai is closest to your users. (The one exception is a
-> certificate in step 10 — AWS forces that one into N. Virginia.)
+> other, and Mumbai is closest to your users.
 
 ---
 
@@ -152,17 +140,32 @@ reads.
 
 ## 1. What we are building, in plain terms
 
-| Piece | Plain meaning | Where it runs |
-|---|---|---|
-| **EC2 instance** | A computer you rent from Amazon, always on | AWS |
-| **Docker** | Runs the API and database in sealed boxes, so the server needs almost nothing installed | on that computer |
-| **Caddy** | Faces the internet, provides HTTPS (the padlock), forwards traffic to the API | on that computer |
-| **S3 + CloudFront** | Stores and serves the web app's files, fast, worldwide | AWS |
+| Piece | Plain meaning |
+|---|---|
+| **EC2 instance** | A computer you rent from Amazon, always on |
+| **Docker** | Runs the database, API and web app in sealed boxes, so the server needs almost nothing installed |
+| **nginx + certbot** | Face the internet, provide HTTPS (the padlock), and hand every request to the web app container. certbot gets and renews the certificate |
 
-Two addresses at the end:
+```
+  phone / browser
+        │  https://app.yourdomain.com
+        ▼
+  nginx :443 on the server ─── HTTPS certificate (certbot)
+        │
+        ▼
+  web container :8080  ──  the app's files
+        │  /api/...
+        ▼
+  api container  ──►  db container (PostgreSQL + PostGIS)
+```
 
-- `https://api.yourdomain.com` — the backend
-- `https://app.yourdomain.com` — what farmers open
+One address, `https://app.yourdomain.com`, serves both the app and its API
+(under `/api/`). Because they share an address, there is no cross-site (CORS)
+setup to get wrong, and the installed phone app works the same way.
+
+Only nginx is reachable from outside. The containers listen on the server's
+loopback address only, and the deploy script refuses to run if that ever
+changes.
 
 **Why one server instead of many managed AWS services?** It is far cheaper,
 there is one place to look when something breaks, and the load here is modest —
@@ -211,252 +214,162 @@ ssh -i ~/Downloads/crop-analytics-key.pem ec2-user@YOUR_ELASTIC_IP
 ```
 
 Say `yes` to the fingerprint prompt. A prompt ending in `$` means you are on the
-server. **Everything until step 10 is typed there.**
+server. **From here on, commands are typed there** unless a step says otherwise.
 
-## 4. Install Docker
+## 4. Point your domain at the server
+
+Do this **before** step 6: the certificate can only be issued once the domain
+points at this server.
+
+Add one DNS record:
+
+| Name | Type | Value |
+|---|---|---|
+| `app.yourdomain.com` | A | your Elastic IP |
+
+**Route 53:** Hosted zones → your domain → **Create record** → name `app`, type
+**A**, value your IP → **Create**.
+
+**IPv6-only instance** (no public IPv4)? Use an **AAAA** record with the
+instance's IPv6 address instead. Setup checks either kind. Bear in mind that
+visitors on IPv4-only networks cannot reach an IPv6-only server, and that the
+server itself cannot reach GitHub (which has no IPv6), so copy the code over
+from your machine rather than `git clone`.
+
+DNS takes 5–30 minutes to spread. From your Mac:
 
 ```bash
-sudo dnf update -y
-sudo dnf install -y docker git
-sudo systemctl enable --now docker
-sudo usermod -aG docker ec2-user
+dig +short app.yourdomain.com
 ```
 
-That last line only takes effect on a fresh login, so:
-
-```bash
-exit
-ssh -i ~/Downloads/crop-analytics-key.pem ec2-user@YOUR_ELASTIC_IP
-docker --version
-```
+Move on once it prints your IP.
 
 ---
 
-# Part 2 — The backend
+# Part 2 — Install and deploy
 
-## 5. Lay out the folders
-
-One folder per environment from the start, so adding staging in Part 5 is not a
-reorganisation:
+## 5. Get the code
 
 ```bash
-mkdir -p ~/apps/prod
-cd ~/apps/prod
-git clone https://github.com/dev-kv113/crop-pulse.git
-cd crop-pulse
+sudo dnf install -y git
+git clone https://github.com/dev-kv113/crop-pulse.git ~/crop-pulse
+cd ~/crop-pulse
 ```
 
 Private repo? Generate a GitHub personal access token and use
 `https://YOUR_TOKEN@github.com/dev-kv113/crop-pulse.git`.
 
-## 6. Write the production settings
-
-Two files. The first tells Docker Compose which stack this is:
+## 6. Set up the server
 
 ```bash
-nano ~/apps/prod/crop-pulse/.env
+scripts/deploy.sh --setup app.yourdomain.com you@yourdomain.com
 ```
 
-```ini
-STACK=crop-prod
-API_PORT=8010
-DB_PORT=5433
-POSTGRES_PASSWORD=PICK_A_LONG_PASSWORD
-```
+The email address is where Let's Encrypt sends certificate-expiry warnings. One
+command, a few minutes, and it:
 
-The second holds the application settings:
+1. Adds a **2 GB swap file**. The app fits in the instance's 2 GB, but building a
+   new version alongside it may not, and without swap Linux kills a process
+   instead (often the database).
+2. Installs **Docker** (with the compose and buildx plugins Amazon Linux leaves
+   out), **nginx** and **certbot**.
+3. Writes the nginx site from [`deploy/nginx-crop-pulse.conf`](../deploy/nginx-crop-pulse.conf),
+   including a maintenance page shown whenever the app is restarting.
+4. **Checks the domain points at this server**, and stops with a plain message if
+   not, rather than burning Let's Encrypt's rate limit.
+5. Gets the **HTTPS certificate** and turns on automatic renewal.
+6. Writes two settings files, if they do not exist yet, with **generated
+   secrets**:
+   - `~/crop-pulse/.env` — Docker Compose settings: stack name, ports, a random
+     database password, your domain, and
+     `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml`, which keeps every
+     container off the public network.
+   - `~/crop-pulse/backend/.env` — app settings, with a random `JWT_SECRET`.
+7. Creates `~/crop-pulse-secrets/` for secrets that should not sit in a settings
+   file.
+
+It is safe to run again: it keeps the existing certificate and settings, and
+fills in any setting that is missing (so you can start from a `.env` of your
+own, e.g. one holding only `SECRETS_DIR`).
+
+DNS not ready yet? Leave out the email (`--setup app.yourdomain.com`) to do
+everything except the certificate, deploy, and re-run with the email later.
+
+Then **log out and back in**, so your user can run Docker without `sudo`:
 
 ```bash
-nano ~/apps/prod/crop-pulse/backend/.env
+exit
+ssh -i ~/Downloads/crop-analytics-key.pem ec2-user@YOUR_ELASTIC_IP
+cd ~/crop-pulse
 ```
 
+`https://app.yourdomain.com` should now show the maintenance page, with a
+padlock. That proves DNS, nginx and the certificate all work before the app is
+even running.
+
+## 7. Production settings
+
+Open the app settings:
+
+```bash
+nano backend/.env
+```
+
+Change these two:
+
 ```ini
-DATABASE_URL=postgresql://croppulse:PICK_A_LONG_PASSWORD@db:5432/croppulse
-DB_POOL_MIN=2
-DB_POOL_MAX=20
-
-JWT_SECRET=PASTE_THE_SECRET_FROM_STEP_0.2
-# Staff sessions: admin, read-only admin, unit head. 720 hours = 30 days.
-JWT_EXPIRY_HOURS=720
-# Farmers stay signed in. 87600 hours = 10 years, i.e. one OTP and then the app
-# just opens. Set this to 720 as well if you want farmers signed out monthly.
-FARMER_JWT_EXPIRY_HOURS=87600
-
 ADMIN_PHONES=+919999999999,+918888888888
 
 # console = the code is printed to the log and returned by the API. Never use
 # it once farmers have the link. msg91 = real SMS.
 SMS_PROVIDER=msg91
-MSG91_AUTH_KEY=PASTE_YOUR_MSG91_AUTHKEY
-MSG91_SENDER_ID=GEOTRN
-# MSG91's own flow id from their panel, not the 19-digit DLT template id.
-MSG91_TEMPLATE_ID=6a8c5a06235d7ea171092d72
-MSG91_OTP_VAR=OTP
-
-OTP_LENGTH=6
-OTP_TTL_SECONDS=300
-OTP_MAX_ATTEMPTS=5
-
-UPLOAD_DIR=/data/uploads
-
-CORS_ORIGINS=https://app.yourdomain.com
 ```
 
-Save with `Ctrl+O`, `Enter`, `Ctrl+X`. Use the **same password** in both files.
+Save with `Ctrl+O`, `Enter`, `Ctrl+X`. Everything else was filled in by setup.
 
-Three of these are worth understanding:
-
-- **`@db:5432`** — inside Docker the database answers to the name `db`, not
-  `localhost`.
-- **`CORS_ORIGINS`** — browsers block a web page from calling an API on a
-  different domain unless the API says that domain is allowed. This is that list.
-  The installed phone app runs from the same domain, so one entry covers both.
-- **`SMS_PROVIDER=console`** — change the moment DLT is approved.
-
-Finally, close the database to the outside world:
+Then the MSG91 key, as a file holding only the key:
 
 ```bash
-nano docker-compose.yml
+printf '%s' 'PASTE_YOUR_MSG91_AUTHKEY' > ~/crop-pulse-secrets/msg91_auth_key
+chmod 600 ~/crop-pulse-secrets/msg91_auth_key
 ```
 
-Delete the two `ports:` lines under `db` (the `- "${DB_PORT:-5433}:5432"` one).
-Only the API needs the database, and it reaches it inside Docker.
+Keeping it in its own file, outside the repository, means it never appears in a
+settings file you might copy, paste or show someone.
 
-## 7. Start the backend
+DLT not approved yet? Leave `SMS_PROVIDER=console` and deploy with
+`--allow-console-sms` (next step) to test with your own team. **Give no farmer
+the link until real SMS works**: with `console`, anyone can sign in as anyone,
+including as an admin.
+
+## 8. First deploy
 
 ```bash
-cd ~/apps/prod/crop-pulse
-docker compose up -d --build
+scripts/deploy.sh
 ```
 
-First run takes a few minutes. Then:
+The first run builds everything and takes a few minutes. It:
 
-```bash
-curl http://localhost:8010/health
-# {"status":"ok"}
-```
-
-Tables are created automatically on first start. `docker compose logs -f api`
-shows what it is doing (`Ctrl+C` stops watching, not the server).
-
----
-
-# Part 3 — Domains and HTTPS
-
-## 8. Point your domain at the server
-
-Add two DNS records, both pointing at your Elastic IP:
-
-| Name | Type | Value |
-|---|---|---|
-| `api.yourdomain.com` | A | your Elastic IP |
-| `app.yourdomain.com` | A | your Elastic IP |
-
-**Route 53:** Hosted zones → your domain → **Create record** → name `api`,
-type **A**, value your IP → **Create**. Repeat for `app`.
-
-DNS takes 5–30 minutes to spread. From your Mac:
-
-```bash
-dig +short api.yourdomain.com
-```
-
-Move on once it prints your IP.
-
-## 9. Turn on HTTPS
-
-HTTPS is the padlock. Without it browsers warn users, and Android refuses to let
-the app call your API. **Caddy** gets and renews certificates automatically.
-
-```bash
-nano ~/apps/prod/Caddyfile
-```
-
-```
-api.yourdomain.com {
-    reverse_proxy localhost:8010
-}
-```
-
-That says: for requests to `api.yourdomain.com`, get a certificate, then hand
-them to the API on port 8010.
-
-```bash
-docker run -d --name caddy --restart unless-stopped --network host \
-  -v ~/apps/prod/Caddyfile:/etc/caddy/Caddyfile \
-  -v caddy_data:/data \
-  caddy:2
-```
-
-Wait ~30 seconds, then from **your Mac**:
-
-```bash
-curl https://api.yourdomain.com/health
-# {"status":"ok"}
-```
-
-Certificates renew themselves from here on.
-
----
-
-# Part 4 — The web app
-
-## 10. Publish the web app
-
-The frontend is plain files. **S3** stores them, **CloudFront** serves them
-worldwide over HTTPS.
-
-### Build it — on your Mac
-
-```bash
-cd ~/Desktop/personal/crop-pulse/frontend
-echo "VITE_API_BASE_URL=https://api.yourdomain.com" > .env.production
-npm run build
-```
-
-The API address is **compiled into the build**, so if that address ever changes
-you must rebuild.
-
-### Create the bucket
-
-1. Console → **S3** → **Create bucket**.
-2. Name `crop-analytics-web` (globally unique — add digits if taken).
-3. Region **ap-south-1**.
-4. Leave **Block all public access ticked**. CloudFront reads it privately, which
-   is safer and the modern default.
-
-### Upload
-
-```bash
-aws s3 sync dist/ s3://crop-analytics-web/ --delete
-```
-
-No `aws` command? Install the AWS CLI and run `aws configure` with a key from
-**IAM → Users → Security credentials**. Or drag the *contents* of `dist/` into
-the bucket in the console.
-
-### Put CloudFront in front
-
-1. Console → **CloudFront** → **Create distribution**.
-2. **Origin domain**: your S3 bucket.
-3. **Origin access**: **Origin access control settings (recommended)** →
-   **Create new OAC** → Create. Then **Copy policy** and paste it into the
-   bucket's **Permissions → Bucket policy**. This is what lets CloudFront read a
-   private bucket.
-4. **Viewer protocol policy**: **Redirect HTTP to HTTPS**.
-5. **Default root object**: `index.html`.
-6. **Custom SSL certificate** → **Request certificate** → `app.yourdomain.com`,
-   DNS validation.
-   *(This certificate must be created in **N. Virginia `us-east-1`** — CloudFront
-   only accepts certificates from there. An AWS quirk, not a mistake.)*
-7. **Alternate domain name (CNAME)**: `app.yourdomain.com`.
-8. Create, wait ~15 minutes.
-9. Change the `app` DNS record to point at the CloudFront domain
-   (`d111111abcdef8.cloudfront.net`). In Route 53 use an **Alias** record.
+1. **Refuses unsafe settings**, listing every problem at once: console OTPs
+   (unless `--allow-console-sms`), a placeholder `JWT_SECRET`, the default
+   database password, or any container reachable from outside the server.
+2. Builds the API and web app images **before** stopping anything, so a broken
+   build leaves the running version untouched.
+3. **Backs up the database** to `~/backups` (from the second deploy on).
+4. Starts the database, API and web app. Database tables are created
+   automatically.
+5. **Checks three hops**: the API answers, the web app answers, and the web app
+   can reach the API. If the new version fails, it **puts the previous one
+   back** automatically and tells you why.
+6. Checks `https://app.yourdomain.com` from the server itself.
 
 Open `https://app.yourdomain.com` — you should see the login screen.
 
-## 11. Load your data
+---
+
+# Part 3 — Running it
+
+## 9. Load your data
 
 Sign in with an `ADMIN_PHONES` number, then:
 
@@ -467,7 +380,7 @@ Sign in with an `ADMIN_PHONES` number, then:
 5. Set login numbers for a couple of farmers, and use **View as farmer** to check
    what they see.
 
-## 12. Back-ups — do not skip this
+## 10. Back-ups — do not skip this
 
 The server can fail. Without back-ups you lose everything.
 
@@ -505,261 +418,53 @@ can write to it. **Then test a restore** — an untested back-up is not a back-u
 gunzip -c ~/backups/db-XXXX.sql.gz | docker exec -i crop-prod-db psql -U croppulse -d croppulse
 ```
 
----
 
-# Part 5 — Automatic deploys and staging
+## 11. The everyday routine
 
-Everything so far was manual on purpose: you now know what a deploy *is*. This
-part replaces it with `git push`, and adds a staging environment.
-
-| Branch | Environment | API | Web app |
-|---|---|---|---|
-| `develop` | **Staging** — break things here | `api-staging.yourdomain.com` | `app-staging.yourdomain.com` |
-| `main` | **Production** — farmers | `api.yourdomain.com` | `app.yourdomain.com` |
-
-Separate databases, so staging cannot touch real data. Both share one EC2
-instance, because the server is idle almost all the time and a second one would
-be money for nothing.
-
-```
-  you: git push origin develop
-        │
-        ▼
-  GitHub Actions
-        ├── backend changed?  ──► ssh to EC2 ──► git pull ──► rebuild ──► health check
-        └── frontend changed? ──► npm build ──► upload to S3 ──► clear CloudFront cache
-```
-
-The two workflow files are already in the repo, under `.github/workflows/`. They
-only run when files that matter changed — editing a README deploys nothing.
-
-## 13. Add a staging stack
+On your Mac, commit and push to `main` as usual. Then:
 
 ```bash
-mkdir -p ~/apps/staging
-cd ~/apps/staging
-git clone https://github.com/dev-kv113/crop-pulse.git
-cd crop-pulse
-git checkout develop
+ssh -i ~/Downloads/crop-analytics-key.pem ec2-user@YOUR_ELASTIC_IP \
+  'cd ~/crop-pulse && scripts/deploy.sh'
 ```
 
-Its Compose settings — different names and ports so nothing collides:
+That pulls `main`, deploys it, and prints a summary. It deploys the API and the
+web app together, every time, so they can never be out of step.
 
-```bash
-nano ~/apps/staging/crop-pulse/.env
-```
-
-```ini
-STACK=crop-staging
-API_PORT=8020
-DB_PORT=5434
-POSTGRES_PASSWORD=A_DIFFERENT_PASSWORD
-```
-
-Its application settings:
-
-```bash
-cp ~/apps/prod/crop-pulse/backend/.env ~/apps/staging/crop-pulse/backend/.env
-nano ~/apps/staging/crop-pulse/backend/.env
-```
-
-Change:
-
-```ini
-DATABASE_URL=postgresql://croppulse:A_DIFFERENT_PASSWORD@db:5432/croppulse
-CORS_ORIGINS=https://app-staging.yourdomain.com
-SMS_PROVIDER=console
-```
-
-> Keep staging on `console` even after DLT approval. It costs nothing to test
-> with, and stops test runs texting real farmers.
-
-Because container names come from `STACK`, production is `crop-prod-*` and
-staging is `crop-staging-*` — separate containers, separate data.
-
-```bash
-cd ~/apps/staging/crop-pulse
-docker compose up -d --build
-curl http://localhost:8020/health
-```
-
-## 14. Give staging its own addresses
-
-**DNS** — two more records pointing at the same Elastic IP:
-
-| Name | Type | Value |
-|---|---|---|
-| `api-staging.yourdomain.com` | A | your Elastic IP |
-| `app-staging.yourdomain.com` | A | your Elastic IP (later, the CloudFront alias) |
-
-**Caddy:**
-
-```bash
-nano ~/apps/prod/Caddyfile
-```
-
-```
-api.yourdomain.com {
-    reverse_proxy localhost:8010
-}
-
-api-staging.yourdomain.com {
-    reverse_proxy localhost:8020
-}
-```
-
-```bash
-docker restart caddy
-```
-
-**S3 + CloudFront** — repeat step 10 with staging names: bucket
-`crop-analytics-web-staging`, certificate and alias for
-`app-staging.yourdomain.com`.
-
-## 15. Let GitHub into the server
-
-GitHub needs an SSH key to log in and deploy. **Do not reuse your personal
-`.pem`** — a separate key can be revoked on its own.
-
-On your Mac:
-
-```bash
-# Press Enter at the passphrase prompt: an automated job cannot type one.
-ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/crop_deploy_key
-
-# Put the PUBLIC half on the server
-ssh-copy-id -i ~/.ssh/crop_deploy_key.pub \
-  -o IdentityFile=~/Downloads/crop-analytics-key.pem ec2-user@YOUR_ELASTIC_IP
-
-ssh -i ~/.ssh/crop_deploy_key ec2-user@YOUR_ELASTIC_IP "echo connected"
-```
-
-The **private** half (`~/.ssh/crop_deploy_key`, no `.pub`) goes into GitHub next.
-It is a password — never commit it, never paste it into a chat.
-
-> GitHub's runners use AWS IPs that change, so a security group restricted to
-> *My IP* will block them. Allow port 22 from anywhere — safe here because
-> Amazon Linux disables password login, so only keys work — or use a self-hosted
-> runner.
-
-## 16. Configure GitHub
-
-Repository → **Settings → Environments → New environment**. Create
-**`production`** and **`staging`**. Environments let each hold *different values
-under the same name*, so one workflow file serves both.
-
-For **each** environment:
-
-**Secrets** (hidden):
-
-| Name | Value |
+| Option | When |
 |---|---|
-| `SSH_HOST` | Your Elastic IP |
-| `SSH_PRIVATE_KEY` | The whole of `~/.ssh/crop_deploy_key`, including the `BEGIN`/`END` lines |
-| `AWS_ACCESS_KEY_ID` | From IAM, below |
-| `AWS_SECRET_ACCESS_KEY` | From IAM, below |
-| `VITE_MAPTILER_KEY` | Optional — only if you use MapTiler imagery |
+| `--no-pull` | Deploy exactly what is checked out on the server, e.g. a specific commit |
+| `--allow-console-sms` | Before DLT approval only |
 
-**Variables** (visible):
+The script refuses to pull if someone has edited files on the server. Keep
+server-specific settings in the two `.env` files and `~/crop-pulse-secrets/`,
+which git never touches.
 
-| Name | production | staging |
-|---|---|---|
-| `VITE_API_BASE_URL` | `https://api.yourdomain.com` | `https://api-staging.yourdomain.com` |
-| `S3_BUCKET` | `crop-analytics-web` | `crop-analytics-web-staging` |
-| `CLOUDFRONT_DISTRIBUTION_ID` | the production one | the staging one |
+**Protect `main`:** on GitHub, Settings → Branches → Add rule, name `main`, tick
+**Require a pull request before merging**. Whatever is on `main` is what the
+next deploy ships.
 
-**The AWS key for GitHub:** IAM → **Users → Create user** →
-`github-actions-deploy`. No console access. Attach an inline policy, with your
-bucket names:
+## 12. Rolling back
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
-      "Resource": [
-        "arn:aws:s3:::crop-analytics-web",
-        "arn:aws:s3:::crop-analytics-web/*",
-        "arn:aws:s3:::crop-analytics-web-staging",
-        "arn:aws:s3:::crop-analytics-web-staging/*"
-      ]
-    },
-    { "Effect": "Allow", "Action": "cloudfront:CreateInvalidation", "Resource": "*" }
-  ]
-}
-```
+**A deploy that fails rolls itself back.** If the new version does not come up
+healthy, the script restarts the previous images and says so.
 
-Then **Security credentials → Create access key → Application running outside
-AWS**. Copy both values into the secrets above — **the secret is shown once.**
-
-That policy is deliberately narrow: it can publish the web app and nothing else,
-so a leaked key is a bounded problem.
-
-## 17. Create `develop` and try it
+To undo a release that deployed fine but is wrong:
 
 ```bash
-cd ~/Desktop/personal/crop-pulse
-git checkout -b develop
-git push -u origin develop
-```
-
-Watch the **Actions** tab; both workflows should go green. Then change something
-visible, commit, push, and within a couple of minutes it is live on
-`https://app-staging.yourdomain.com`.
-
-## 18. The everyday routine
-
-```bash
-# 1. Work on develop
-git checkout develop
-git add -A && git commit -m "what changed" && git push
-#    -> deploys to staging automatically
-
-# 2. Check app-staging.yourdomain.com
-
-# 3. Happy? Ship it
-git checkout main && git merge develop && git push
-#    -> deploys to production automatically
-```
-
-For anything substantial, open a **Pull Request** from `develop` to `main`
-instead of merging locally: you get a diff to review before it reaches farmers.
-
-**Protect `main`:** Settings → Branches → Add rule, name `main`, tick **Require a
-pull request before merging**. That one tick makes it impossible to push straight
-to production by accident.
-
-### What the backend deploy actually does
-
-1. Works out staging or production from the branch.
-2. `git reset --hard` to that branch, so the server matches the repo exactly.
-3. **Backs up the database** before anything changes.
-4. Rebuilds and restarts the API. Migrations apply themselves on startup.
-5. **Polls `/health` for 30 seconds.** If it never answers, it prints the last 60
-   log lines and **fails loudly** rather than leaving you thinking it worked.
-6. Prunes old Docker images, which otherwise fill the disk.
-
-Your data is never touched — it lives in Docker volumes, not in the container.
-
-## 19. Rolling back
-
-```bash
-git checkout main
+# on your Mac
 git revert HEAD    # undoes the last commit, as a new commit
 git push
+# then deploy as usual
 ```
 
-Deployed within a couple of minutes. Reverting beats resetting because the
-history stays honest about what happened.
+Reverting beats resetting because the history stays honest about what happened.
 
-If the *database* is wrong, restore the backup the workflow took just before:
+If the *database* is wrong, restore the backup the deploy took just before:
 
 ```bash
-ssh -i ~/Downloads/crop-analytics-key.pem ec2-user@YOUR_ELASTIC_IP
 ls -lt ~/backups | head
-cd ~/apps/prod/crop-pulse
+cd ~/crop-pulse
 docker compose stop api
 gunzip -c ~/backups/predeploy-crop-prod-XXXX.sql.gz \
   | docker exec -i crop-prod-db psql -U croppulse -d croppulse
@@ -771,26 +476,31 @@ docker compose start api
 # When something breaks
 
 ```bash
-docker compose ps                    # is everything running?
-docker compose logs --tail 100 api   # what did it say?
-docker compose restart api           # turn it off and on again
-df -h                                # disk full?
-free -m                              # out of memory?
+cd ~/crop-pulse
+docker compose ps                         # is everything running?
+docker compose logs --tail 100 api web    # what did they say?
+docker compose restart api                # turn it off and on again
+sudo nginx -t && sudo systemctl status nginx
+df -h                                     # disk full?
+free -m                                   # out of memory?
 ```
 
 | Symptom | Likely cause |
 |---|---|
-| Site does not load | DNS not spread yet, or Caddy not running (`docker logs caddy`) |
-| "Failed to fetch" in the browser | `CORS_ORIGINS` does not list your app domain |
-| Certificate errors | Port 80 blocked in the security group — Caddy needs it to renew |
+| Site does not load at all | DNS not spread yet, security group missing 80/443, or nginx stopped (`sudo systemctl status nginx`) |
+| Maintenance page | The web container is down or restarting: `docker compose ps`, then `docker compose logs web` |
+| Certificate errors | Port 80 blocked in the security group; certbot needs it to renew (`sudo certbot renew --dry-run`) |
+| `--setup` says the domain points elsewhere | The A record is wrong or has not spread; check with `dig +short` |
+| `Not deploying - fix these first` | The deploy script found unsafe settings; it lists each one |
+| `rolled back` | The new version crashed on startup; the log tail is printed above the message |
+| `Cannot talk to Docker` | Log out and back in after `--setup`, so the docker group applies |
 | Upload fails | Disk full. `docker system prune -a` clears old images |
-| Everything slow | Check `docker stats`; if RAM is the limit, resize the instance |
-| `Permission denied (publickey)` in Actions | `SSH_PRIVATE_KEY` wrong or missing its `BEGIN`/`END` lines |
-| `did not become healthy` in Actions | API crashed on startup — the log tail is printed just below |
-| `AccessDenied` on S3 in Actions | IAM policy missing that bucket, or variables set on the wrong environment |
+| A container keeps restarting | It hit its memory limit. `docker inspect -f '{{.State.OOMKilled}}' crop-prod-db` says `true`; `docker stats` shows usage against the limits |
+| Everything slow | Check `docker stats`; if RAM is the limit, resize the instance and raise the limits in `docker-compose.prod.yml` |
 
-Nothing is published unless every step before it passed, so a failed deploy
-leaves the previous version running.
+Nothing restarts until the new version has built, and a version that does not
+come up healthy is replaced by the previous one, so a failed deploy leaves the
+site running.
 
 ## When to outgrow one server
 

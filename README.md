@@ -608,9 +608,11 @@ version installed on each phone.
 someone who has not deployed a server before. Every step explains what it does
 and why.
 
-It gets you live on AWS (Parts 1–4, about two hours, ~US$20–25/month), then turns
-deploying into `git push` with a **staging** environment (Part 5, ~45 minutes,
-~US$1/month more) using the workflows already in `.github/workflows/`.
+Everything runs on one EC2 instance: database, API and web app in Docker, with
+nginx and a Let's Encrypt certificate in front. About an hour the first time,
+~US$15–20/month. [`scripts/deploy.sh`](scripts/deploy.sh) does both jobs:
+`--setup <domain> <email>` once to prepare the server, then plain
+`scripts/deploy.sh` for every release.
 
 **[docs/DEPLOY-ANDROID.md](docs/DEPLOY-ANDROID.md)** — the Play Store: the
 signing key, the paperwork Google requires, and the release tracks.

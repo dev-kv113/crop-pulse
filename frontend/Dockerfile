@@ -1,15 +1,19 @@
 # The web app as a container: build the static files, then serve them with nginx.
 #
-# Used by the `web` service in docker-compose.yml. Production does not use this
-# image - there the same `dist/` is served by the host's nginx (see deploy/).
+# Used by the `web` service in docker-compose.yml, locally and in production.
+# In production the host's nginx sits in front of it for HTTPS (see deploy/).
 
 # ---------------------------------------------------------------- build ---
-FROM node:20-alpine AS build
+# Node 22: maplibre's dependencies require it (>= 22).
+FROM node:22-alpine AS build
 WORKDIR /app
 
 # Dependencies first, so a code change does not re-install them on every build.
 COPY package.json package-lock.json .npmrc ./
-RUN npm ci
+# npm can crash mid-install ("Exit handler never called!") and still exit 0,
+# leaving half a node_modules. Check the toolchain really arrived, so a network
+# hiccup fails here, by name, rather than as "tsc: not found" two steps later.
+RUN npm ci && test -x node_modules/.bin/tsc && test -x node_modules/.bin/vite
 
 COPY . .
 
@@ -23,7 +27,10 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_MAPTILER_KEY=$VITE_MAPTILER_KEY \
     VITE_ANALYTICS_URL=$VITE_ANALYTICS_URL
 
-RUN npm run build
+# Cap Node's heap so the build fits beside the running stack on a 2 GB server.
+# Without a cap Node sizes its heap from total RAM and can push the box into
+# the OOM killer mid-deploy; 1 GB is enough for this app's build.
+RUN NODE_OPTIONS=--max-old-space-size=1024 npm run build
 
 # ---------------------------------------------------------------- serve ---
 FROM nginx:1.27-alpine
